@@ -1,106 +1,131 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Sun, Cloud, Thermometer, Droplets, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CloudSun, Thermometer, Droplets } from 'lucide-react';
 
-interface ForecastDay {
+interface Props {
+  destination: string;
+}
+
+interface WeatherCurrent {
+  temp: number;
+  feelsLike: number;
+  humidity: number;
+  condition: string;
+}
+
+interface WeatherForecast {
   day: string;
   high: number;
   low: number;
   condition: string;
 }
 
-export default function WeatherPanel({ destination }: { destination: string }) {
-  const [weather, setWeather] = useState<{
-    current: { temp: number; feelsLike: number; humidity: number; condition: string };
-    forecast: ForecastDay[];
-  } | null>(null);
-  const [loading, setLoading] = useState(false);
+interface WeatherData {
+  current?: WeatherCurrent;
+  forecast?: WeatherForecast[];
+}
 
-  const fetchWeather = useCallback(async () => {
-    if (!destination.trim()) return;
+export default function WeatherPanel({ destination }: Props) {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    try {
-      const res = await fetch('/api/mcp/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          server: 'weather',
-          tool: 'get_current_weather',
-          params: { location: destination },
-        }),
-      });
-      const json = await res.json();
+    setError(null);
 
-      if (json.data?.[0]?.text) {
-        try {
-          setWeather(JSON.parse(json.data[0].text));
-        } catch {
-          /* fall through */
+    fetch('/api/mcp/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        server: 'weather',
+        tool: 'get_current_weather',
+        params: { location: destination || 'ubud' },
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (!data.success) {
+          setError(data.error || 'Failed to load weather');
+          return;
         }
-      } else if (json.data?.current) {
-        setWeather(json.data);
-      }
-    } catch {
-      /* fallback */
-    } finally {
-      setLoading(false);
-    }
+        setWeather(data.data as WeatherData);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Unable to load weather');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [destination]);
 
+  if (loading) {
+    return (
+      <div className="space-y-2" role="status" aria-label="Loading weather">
+        <div className="h-16 rounded-lg bg-white/[0.03] animate-pulse-soft" />
+        <div className="h-12 rounded-lg bg-white/[0.03] animate-pulse-soft" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>
+    );
+  }
+
+  if (!weather) {
+    return (
+      <p className="text-xs text-zinc-500 text-center py-4">No weather data.</p>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <button
-        onClick={fetchWeather}
-        disabled={loading}
-        className="w-full flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] glass-hover disabled:opacity-40"
-      >
-        <div className="flex items-center gap-2">
-          <Cloud className="w-4 h-4 text-teal-400" />
-          <span className="text-xs text-zinc-400">
-            {weather ? 'Refresh weather' : `Check weather in ${destination || 'your destination'}`}
-          </span>
-        </div>
-        {loading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
-        ) : (
-          <Sun className="w-4 h-4 text-amber-400/70" />
-        )}
-      </button>
-
-      {weather && !loading && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-emerald-500/5 to-teal-400/5 border border-emerald-500/10">
+    <div>
+      {weather.current && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] mb-3">
+          <div className="flex items-center gap-2">
+            <CloudSun className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <div>
-              <p className="text-3xl font-light text-white">{weather.current.temp}°</p>
-              <p className="text-xs text-zinc-400 mt-1">{weather.current.condition}</p>
-            </div>
-            <div className="space-y-2 text-right">
-              <div className="flex items-center gap-2 justify-end">
-                <Thermometer className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="text-xs text-zinc-400">Feels {weather.current.feelsLike}°</span>
-              </div>
-              <div className="flex items-center gap-2 justify-end">
-                <Droplets className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="text-xs text-zinc-400">{weather.current.humidity}%</span>
-              </div>
+              <p className="text-lg font-semibold text-white">{weather.current.temp}°</p>
+              <p className="text-[10px] text-zinc-500">{weather.current.condition}</p>
             </div>
           </div>
+          <div className="space-y-1 text-right">
+            <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+              <Thermometer className="w-3 h-3" aria-hidden="true" />
+              Feels like {weather.current.feelsLike}°
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+              <Droplets className="w-3 h-3" aria-hidden="true" />
+              {weather.current.humidity}%
+            </div>
+          </div>
+        </div>
+      )}
 
-          <div className="grid grid-cols-2 gap-2">
-            {weather.forecast.map((day, i) => (
-              <div
-                key={i}
-                className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-center"
-              >
-                <p className="text-xs font-medium text-white">{day.day}</p>
-                <p className="text-xs text-zinc-500 mt-1">{day.condition}</p>
-                <p className="text-sm text-zinc-300 mt-1">
-                  {day.high}° / {day.low}°
-                </p>
+      {weather.forecast && weather.forecast.length > 0 && (
+        <div className="space-y-1" role="list" aria-label="Weather forecast">
+          {weather.forecast.map((day, i) => (
+            <div
+              key={i}
+              role="listitem"
+              className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+            >
+              <span className="text-xs text-zinc-300">{day.day}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-500">{day.condition}</span>
+                <span className="text-xs text-zinc-400">
+                  {day.low}° / {day.high}°
+                </span>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

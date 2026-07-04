@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bon-Voyage.io — AI Travel Discovery
+
+An AI-powered travel platform that uncovers hidden cultural experiences, sensory narratives, and authentic local connections wherever you go.
+
+## Architecture
+
+- **Next.js 16.2.10** (Turbopack) with TypeScript and React 19
+- **Tailwind CSS v4** for styling (CSS-based config via `@theme inline`)
+- **OpenAI `gpt-4o-mini`** as primary LLM (fallback chain: Gemini 2.5 → 2.0 → static fallback)
+- **MCP tool proxy** for maps, flights, weather, and heritage data
+- **Browser SpeechSynthesis** for audio narration (zero-cost TTS)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Add your API keys: GEMINI_API_KEY, OPENAI_API_KEY, SMITHERY_API_KEY
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── discover/route.ts    # AI-powered discovery endpoint
+│   │   └── mcp/proxy/route.ts   # MCP tool proxy endpoint
+│   ├── globals.css              # Global styles + Tailwind
+│   ├── layout.tsx               # Root layout with metadata
+│   └── page.tsx                 # Main dashboard page
+├── components/
+│   ├── Sidebar.tsx              # Navigation sidebar
+│   ├── DiscoveryHub.tsx         # Search + vibe selection header
+│   ├── LiveMatrix.tsx           # Results grid container
+│   ├── SkeletonLoader.tsx       # Loading state with travel quotes
+│   ├── CardHiddenGems.tsx       # Cultural hook card
+│   ├── CardSensoryTimeMachine.tsx # Audio narration card
+│   ├── CardWholesomePlaybook.tsx  # Connection playbook card
+│   ├── TravelTools.tsx          # Tools panel container
+│   └── tools/
+│       ├── MapsPanel.tsx        # Places search
+│       ├── FlightsPanel.tsx     # Flight search
+│       ├── WeatherPanel.tsx     # Weather data
+│       └── HeritagePanel.tsx    # Heritage stories
+├── context/
+│   └── AppContext.tsx           # Global state management
+├── lib/
+│   ├── api.ts                  # Client-side API wrapper
+│   ├── constants.ts            # App-wide constants
+│   ├── fallbackData.ts         # Fallback API response
+│   ├── mockData.ts             # Mock travel experience
+│   ├── smithery.ts             # MCP/Smithery client
+│   └── validation.ts           # Input sanitization & validation
+├── types/
+│   └── index.ts                # TypeScript type definitions
+└── __tests__/
+    ├── api.test.ts             # API client tests
+    ├── constants.test.ts       # Constants tests
+    ├── discover-route.test.ts  # Discover route validation tests
+    ├── fallbackData.test.ts    # Fallback data schema tests
+    ├── mcp-proxy-route.test.ts # MCP proxy validation tests
+    ├── mockData.test.ts        # Mock data schema tests
+    └── validation.test.ts      # Validation function tests
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Testing
 
-## Learn More
+The test suite covers:
+- Input validation and sanitization (XSS prevention, type checking)
+- API client error handling (network errors, invalid responses)
+- Data schema validation (fallback data, mock data structure)
+- Route validation logic (missing fields, type coercion)
+- Constant integrity
 
-To learn more about Next.js, take a look at the following resources:
+Run tests with `npm test` (76 tests across 7 files).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Security
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- All API keys via environment variables (never hardcoded)
+- Input sanitization strips `<` `>` to prevent XSS
+- Server and tool names validated with regex whitelist
+- String length limits enforced on all user inputs
+- API responses include `X-Robots-Tag: noindex` header
+- JSON body parsing wrapped in try/catch
 
-## Deploy on Vercel
+## Accessibility
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Semantic HTML (`<header>`, `<main>`, `<aside>`, `<article>`, `<section>`, `<nav>`, `<footer>`)
+- Full ARIA attributes (`role`, `aria-label`, `aria-pressed`, `aria-current`, `aria-live`, `aria-hidden`)
+- Keyboard navigation (Enter/Space on interactive elements)
+- Screen reader support for loading states via `role="status"`
+- Focus-visible ring styles on all interactive elements
+- Skip-to-content ready (landmarks)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Deployed on Vercel: https://travel-kappa-khaki.vercel.app
+
+```bash
+npx vercel --prod
+```
+
+Set environment variables in Vercel dashboard:
+- `GEMINI_API_KEY`
+- `OPENAI_API_KEY`
+- `SMITHERY_API_KEY`

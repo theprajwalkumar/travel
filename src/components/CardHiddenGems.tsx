@@ -9,30 +9,33 @@ interface Props {
 
 export default function CardHiddenGems({ data }: Props) {
   return (
-    <div className="glass rounded-2xl p-6 glass-hover animate-fade-in-up stagger-1 h-full flex flex-col">
-      <div className="flex items-center gap-2.5 mb-5">
+    <article
+      className="glass rounded-2xl p-6 glass-hover animate-fade-in-up stagger-1 h-full flex flex-col"
+      aria-label="Hidden gems and local secrets"
+    >
+      <header className="flex items-center gap-2.5 mb-5">
         <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <Sparkles className="w-4 h-4 text-emerald-400" aria-hidden="true" />
         </div>
         <h3 className="text-sm font-semibold text-white">
           Hidden Gems &amp; Local Secrets
         </h3>
-      </div>
+      </header>
 
       <div className="space-y-5 flex-1">
         <Section
-          icon={<Star className="w-3.5 h-3.5 text-amber-400/70" />}
+          icon={<Star className="w-3.5 h-3.5 text-amber-400/70" aria-hidden="true" />}
           label="The Cultural Hook"
           text={data.cultural_hook}
         />
         <Section
-          icon={<Star className="w-3.5 h-3.5 text-rose-400/70" />}
+          icon={<Star className="w-3.5 h-3.5 text-rose-400/70" aria-hidden="true" />}
           label="Why For You"
           text={data.why_for_you}
         />
-        <div className="mt-auto pt-2">
+        <footer className="mt-auto pt-2">
           <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10">
-            <MapPin className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider mb-1">
                 Local Field Tip
@@ -42,9 +45,9 @@ export default function CardHiddenGems({ data }: Props) {
               </p>
             </div>
           </div>
-        </div>
+        </footer>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -58,14 +61,14 @@ function Section({
   text: string;
 }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-1.5">
+    <section>
+      <h4 className="flex items-center gap-1.5 mb-1.5">
         {icon}
         <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
           {label}
         </span>
-      </div>
+      </h4>
       <p className="text-sm text-zinc-300 leading-relaxed">{text}</p>
-    </div>
+    </section>
   );
 }

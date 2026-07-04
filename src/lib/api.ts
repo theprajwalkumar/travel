@@ -1,10 +1,11 @@
-import type { TravelExperience, VibeOption, SeasonOption } from '@/types';
+import type { TravelExperience } from '@/types';
 import type { DiscoverApiResponse } from './fallbackData';
+import { sanitizeString, validateDestination, validateVibe } from './validation';
 
 export interface DiscoverRequest {
   userLocation: string;
-  userVibe: VibeOption;
-  currentDateTimeSeason: SeasonOption;
+  userVibe: string;
+  currentDateTimeSeason: string;
 }
 
 function transformResponse(apiData: DiscoverApiResponse): TravelExperience {
@@ -21,17 +22,17 @@ function transformResponse(apiData: DiscoverApiResponse): TravelExperience {
     sensory_time_machine: [
       {
         title: apiData.story_segments.arrival.ui_subtitle,
-        description: apiData.story_segments.arrival.narration_script,
+        description: sanitizeString(apiData.story_segments.arrival.narration_script),
         duration: '2 min',
       },
       {
         title: apiData.story_segments.hidden_detail.ui_subtitle,
-        description: apiData.story_segments.hidden_detail.narration_script,
+        description: sanitizeString(apiData.story_segments.hidden_detail.narration_script),
         duration: '3 min',
       },
       {
         title: apiData.story_segments.living_echo.ui_subtitle,
-        description: apiData.story_segments.living_echo.narration_script,
+        description: sanitizeString(apiData.story_segments.living_echo.narration_script),
         duration: '4 min',
       },
     ],
@@ -52,21 +53,28 @@ function transformResponse(apiData: DiscoverApiResponse): TravelExperience {
 export async function fetchDiscoverExperience(
   request: DiscoverRequest,
 ): Promise<TravelExperience> {
+  const userLocation = validateDestination(request.userLocation);
+  const userVibe = validateVibe(request.userVibe);
+
   const res = await fetch('/api/discover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      userLocation,
+      userVibe,
+      currentDateTimeSeason: request.currentDateTimeSeason,
+    }),
   });
 
   if (!res.ok) {
     throw new Error(`API error: ${res.status}`);
   }
 
-  const json = await res.json();
+  const json: { success: boolean; data?: DiscoverApiResponse } = await res.json();
 
   if (!json.success || !json.data) {
     throw new Error('Invalid API response structure');
   }
 
-  return transformResponse(json.data as DiscoverApiResponse);
+  return transformResponse(json.data);
 }

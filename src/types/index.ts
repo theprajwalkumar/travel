@@ -1,14 +1,3 @@
-export type AppMode = 'adventure' | 'wholesome';
-
-export type VibeOption =
-  | 'Craft & Heritage'
-  | 'Architectural History'
-  | 'Local Legends'
-  | 'Culinary Trails'
-  | 'Sacred Rituals';
-
-export type SeasonOption = 'Morning' | 'Afternoon' | 'Evening' | 'Night';
-
 export interface HiddenGems {
   cultural_hook: string;
   why_for_you: string;
@@ -40,4 +29,44 @@ export interface TravelExperience {
   hidden_gems: HiddenGems;
   sensory_time_machine: SensoryStep[];
   wholesome_playbook: WholesomePlaybook;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  _fallback?: boolean;
+}
+
+export interface DiscoverRequestBody {
+  userLocation: string;
+  userVibe: string;
+  currentDateTimeSeason: string;
+}
+
+export interface McpRequestBody {
+  server: string;
+  tool: string;
+  params?: Record<string, unknown>;
+}
+
+export interface NarratedSegment {
+  title: string;
+  description: string;
+}
+
+export interface FallbackPlacesResult {
+  name: string;
+  rating: number;
+  vicinity: string;
+  types: string[];
+}
+
+export interface FallbackFlightsResult {
+  airline: string;
+  price: string;
+  duration: string;
+  stops: number;
+  departure: string;
+  arrival: string;
 }

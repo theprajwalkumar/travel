@@ -1,6 +1,23 @@
 import { callTool, callMcpDirect, MCP_SERVERS } from '@/lib/smithery';
+import { validateMcpBody, sanitizeString } from '@/lib/validation';
 
-const FALLBACK: Record<string, unknown> = {
+interface Fallback {
+  maps: {
+    places: { name: string; rating: number; vicinity: string; types: string[] }[];
+  };
+  flights: {
+    flights: { airline: string; price: string; duration: string; stops: number; departure: string; arrival: string }[];
+  };
+  weather: {
+    current: { temp: number; feelsLike: number; humidity: number; condition: string; icon: string };
+    forecast: { day: string; high: number; low: number; condition: string }[];
+  };
+  heritage: {
+    stories: { title: string; community: string; summary: string }[];
+  };
+}
+
+const FALLBACK: Fallback = {
   maps: {
     places: [
       { name: 'Ubud Traditional Pottery Bale', rating: 4.8, vicinity: 'Banjar Kaja Sesetan, Ubud', types: ['artisan', 'cultural'] },
@@ -30,60 +47,78 @@ const FALLBACK: Record<string, unknown> = {
 };
 
 export async function POST(request: Request) {
-  let body: { server?: string; tool?: string; params?: Record<string, unknown> } = {};
+  let body: Record<string, unknown> = {};
   try {
     body = await request.json();
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+    return Response.json(
+      { success: false, error: 'Invalid JSON body' },
+      { status: 400, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex' } },
+    );
   }
 
-  const { server, tool, params } = body;
-
-  if (!server || !tool) {
-    return Response.json({ success: false, error: 'Missing server or tool' }, { status: 400 });
+  let server: string;
+  let tool: string;
+  let params: Record<string, unknown>;
+  try {
+    ({ server, tool, params } = validateMcpBody(body));
+  } catch (e) {
+    return Response.json(
+      { success: false, error: e instanceof Error ? e.message : 'Invalid request' },
+      { status: 400, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex' } },
+    );
   }
 
   try {
     if (server === 'maps' && tool === 'search_places') {
+      const query = typeof params.query === 'string' ? params.query : '';
       const data = await callMcpDirect(
         'https://mapstools.googleapis.com/mcp',
         'search_places',
-        { textQuery: params?.query ?? '' },
+        { textQuery: query },
       );
-      return Response.json({ success: true, data });
+      return Response.json(
+        { success: true, data },
+        { status: 200, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex' } },
+      );
     }
 
     const serverKey = server as keyof typeof MCP_SERVERS;
-    const data = await callTool(serverKey, tool, params ?? {});
-    return Response.json({ success: true, data });
+    const data = await callTool(serverKey, tool, params);
+    return Response.json(
+      { success: true, data },
+      { status: 200, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex' } },
+    );
   } catch (error) {
     console.error('MCP proxy error:', error);
 
-    const key = server ?? 'maps';
-    const query = (params?.query as string) || (params?.location as string) || '';
-    const dest = params?.destination as string || query || 'your destination';
+    const key = server as keyof Fallback;
+    const query = sanitizeString(
+      (params.query as string) || (params.location as string) || '',
+    );
+    const dest = sanitizeString(
+      (params.destination as string) || query || 'your destination',
+    );
 
-    // Inject user context into fallback data so it feels responsive
-    const contextualFallback = structuredClone(FALLBACK[key] ?? FALLBACK.maps);
+    const contextualFallback = structuredClone(FALLBACK[key] ?? FALLBACK.maps) as Record<string, unknown>;
 
-    if (key === 'maps' && Array.isArray((contextualFallback as Record<string, unknown>).places)) {
-      (contextualFallback as Record<string, unknown>).places = [
+    if (key === 'maps' && Array.isArray(contextualFallback.places)) {
+      contextualFallback.places = [
         { name: `Cultural Quarter`, rating: 4.7, vicinity: `Central ${dest}`, types: ['cultural', 'historic'] },
         { name: `Heritage Walkway`, rating: 4.5, vicinity: `Old ${dest}`, types: ['cultural'] },
         { name: `${dest} Artisan Corner`, rating: 4.3, vicinity: `${dest}`, types: ['artisan', 'local'] },
       ];
-    } else if (key === 'flights' && Array.isArray((contextualFallback as Record<string, unknown>).flights)) {
-      (contextualFallback as Record<string, unknown>).flights = [
+    } else if (key === 'flights' && Array.isArray(contextualFallback.flights)) {
+      contextualFallback.flights = [
         { airline: 'IndiGo', price: '$120', duration: '2h 15m', stops: 0, departure: '06:45', arrival: '09:00' },
         { airline: 'Air India', price: '$180', duration: '2h 10m', stops: 0, departure: '14:30', arrival: '16:40' },
         { airline: 'SpiceJet', price: '$95', duration: '2h 30m', stops: 0, departure: '22:15', arrival: '00:45' },
       ];
     }
 
-    return Response.json({
-      success: true,
-      data: contextualFallback,
-      _fallback: true,
-    });
+    return Response.json(
+      { success: true, data: contextualFallback, _fallback: true },
+      { status: 200, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex' } },
+    );
   }
 }

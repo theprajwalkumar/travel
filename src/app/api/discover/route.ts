@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { fallbackDiscoverResponse } from '@/lib/fallbackData';
+import { validateDiscoverBody } from '@/lib/validation';
+import { GEMINI_MODELS, OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_MAX_TOKENS, GEMINI_TEMPERATURE, GEMINI_TOP_P } from '@/lib/constants';
 
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
@@ -15,7 +17,8 @@ const SYSTEM_PROMPT = `You are an elite hyper-local guide with encyclopedic know
 Your response should feel like a trusted local friend pulling the traveler aside. Prioritize specificity, sensory detail, and actionable intelligence (exact cross streets, best time of day, what to look for, what to skip). You love revealing the kind of detail that makes a traveler feel like they've discovered something genuinely secret.`;
 
 function buildPrompt(location: string, vibe: string, dateTimeSeason: string): string {
-  return `Generate a curated cultural discovery experience for a traveler visiting ${location}.
+  const escapedLocation = location.replace(/["\\]/g, '');
+  return `Generate a curated cultural discovery experience for a traveler visiting ${escapedLocation}.
 
 Traveler's interest: ${vibe}
 Current time/season context: ${dateTimeSeason}
@@ -54,26 +57,52 @@ Return a JSON object with this exact schema:
 
 Rules:
 - Return ONLY the JSON object, no markdown fences or extra text.
-- Every string must be original, vivid, and 100% specific to ${location}.
+- Every string must be original, vivid, and 100% specific to ${escapedLocation}.
 - Recommendations must feel like genuine local discoveries.
 - Story segments must immerse in sensory details (sights, sounds, smells, textures).
 - Distance contexts should be realistic (walking minutes, landmarks).
-- The linguistic bridge must use a real local language/dialect appropriate to ${location}.`;
+- The linguistic bridge must use a real local language/dialect appropriate to ${escapedLocation}.`;
+}
+
+interface StorySegments {
+  arrival?: { ui_subtitle?: string; narration_script?: string };
+  hidden_detail?: { ui_subtitle?: string; narration_script?: string };
+  living_echo?: { ui_subtitle?: string; narration_script?: string };
+}
+
+interface Recommendation {
+  title?: string;
+  type?: string;
+  distance_context?: string;
+  the_cultural_hook?: string;
+  why_for_you?: string;
+  interactive_local_tip?: string;
 }
 
 function validateApiResponse(data: unknown) {
-  if (!data || typeof data !== 'object') throw new Error('Response is not an object');
+  if (!data || typeof data !== 'object') {
+    throw new Error('Response is not an object');
+  }
   const d = data as Record<string, unknown>;
-  if (!d.discovery_location || !d.recommendations || !d.story_segments || !d.wholesome_playbook) {
-    throw new Error('Missing top-level fields');
+
+  if (typeof d.discovery_location !== 'string' || !d.discovery_location.trim()) {
+    throw new Error('Missing or invalid discovery_location');
   }
   if (!Array.isArray(d.recommendations) || d.recommendations.length === 0) {
-    throw new Error('Missing recommendations');
+    throw new Error('Missing or empty recommendations array');
   }
-  const segs = d.story_segments as Record<string, unknown>;
+  if (!d.story_segments || typeof d.story_segments !== 'object') {
+    throw new Error('Missing story_segments');
+  }
+  if (!d.wholesome_playbook || typeof d.wholesome_playbook !== 'object') {
+    throw new Error('Missing wholesome_playbook');
+  }
+
+  const segs = d.story_segments as StorySegments;
   if (!segs.arrival || !segs.hidden_detail || !segs.living_echo) {
-    throw new Error('Missing story segments');
+    throw new Error('Missing story segments (arrival, hidden_detail, or living_echo)');
   }
+
   return data as typeof fallbackDiscoverResponse;
 }
 
@@ -81,14 +110,14 @@ async function tryOpenAI(location: string, vibe: string, dateTimeSeason: string)
   if (!openai) throw new Error('OpenAI not configured');
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: OPENAI_MODEL,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: buildPrompt(location, vibe, dateTimeSeason) },
     ],
     response_format: { type: 'json_object' },
-    temperature: 0.8,
-    max_tokens: 4096,
+    temperature: OPENAI_TEMPERATURE,
+    max_tokens: OPENAI_MAX_TOKENS,
   });
 
   const text = completion.choices[0]?.message?.content;
@@ -97,13 +126,6 @@ async function tryOpenAI(location: string, vibe: string, dateTimeSeason: string)
   const parsed = JSON.parse(text);
   return validateApiResponse(parsed);
 }
-
-const GEMINI_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-];
 
 async function tryGemini(location: string, vibe: string, dateTimeSeason: string) {
   if (!genAI) throw new Error('Gemini not configured');
@@ -116,21 +138,19 @@ async function tryGemini(location: string, vibe: string, dateTimeSeason: string)
         model: modelName,
         systemInstruction: SYSTEM_PROMPT,
         generationConfig: {
-          temperature: 0.8,
-          topP: 0.95,
+          temperature: GEMINI_TEMPERATURE,
+          topP: GEMINI_TOP_P,
           responseMimeType: 'application/json',
         },
       });
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-
       const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
       const parsed = JSON.parse(cleaned);
       return validateApiResponse(parsed);
     } catch (e) {
       console.warn(`Gemini model ${modelName} failed:`, (e as Error).message);
-      continue;
     }
   }
 
@@ -139,24 +159,29 @@ async function tryGemini(location: string, vibe: string, dateTimeSeason: string)
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const {
-      userLocation = '',
-      userVibe = 'Craft & Heritage',
-      currentDateTimeSeason = 'Afternoon',
-    } = body;
+    const body = await request.json().catch(() => {
+      throw new Error('Invalid JSON body');
+    });
+
+    const { userLocation, userVibe, currentDateTimeSeason } = validateDiscoverBody(body as Record<string, unknown>);
 
     if (!userLocation.trim()) {
       return Response.json({ success: true, data: fallbackDiscoverResponse });
     }
 
-    let data: unknown = null;
-
-    // Try OpenAI first, then Gemini, then fallback
     if (openai) {
       try {
-        data = await tryOpenAI(userLocation, userVibe, currentDateTimeSeason);
-        return Response.json({ success: true, data });
+        const data = await tryOpenAI(userLocation, userVibe, currentDateTimeSeason);
+        return Response.json(
+          { success: true, data },
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Robots-Tag': 'noindex',
+            },
+          },
+        );
       } catch (e) {
         console.warn('OpenAI failed, trying Gemini:', (e as Error).message);
       }
@@ -164,17 +189,45 @@ export async function POST(request: Request) {
 
     if (genAI) {
       try {
-        data = await tryGemini(userLocation, userVibe, currentDateTimeSeason);
-        return Response.json({ success: true, data });
+        const data = await tryGemini(userLocation, userVibe, currentDateTimeSeason);
+        return Response.json(
+          { success: true, data },
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Robots-Tag': 'noindex',
+            },
+          },
+        );
       } catch (e) {
         console.warn('Gemini failed, using fallback:', (e as Error).message);
       }
     }
 
     console.warn('No AI provider available — returning fallback data');
-    return Response.json({ success: true, data: fallbackDiscoverResponse });
+    return Response.json(
+      { success: true, data: fallbackDiscoverResponse },
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Robots-Tag': 'noindex',
+        },
+      },
+    );
   } catch (error) {
-    console.error('Discover API error:', error);
-    return Response.json({ success: true, data: fallbackDiscoverResponse });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Discover API error:', message);
+    return Response.json(
+      { success: true, data: fallbackDiscoverResponse },
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Robots-Tag': 'noindex',
+        },
+      },
+    );
   }
 }

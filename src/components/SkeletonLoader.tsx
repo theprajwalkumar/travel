@@ -2,46 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import { Compass } from 'lucide-react';
-
-const QUOTES = [
-  'Travel is the only thing you buy that makes you richer.',
-  'The world is a book, and those who do not travel read only one page.',
-  'Not all those who wander are lost.',
-  'Adventure is worthwhile in itself.',
-  'To travel is to discover that everyone is wrong about other countries.',
-  'The gladdest moment in human life is a departure into unknown lands.',
-  'Travel makes one modest. You see what a tiny place you occupy in the world.',
-  'Life is either a daring adventure or nothing at all.',
-  'We travel not to escape life, but for life not to escape us.',
-  'A journey of a thousand miles begins with a single step.',
-  'Travel brings power and love back into your life.',
-  'The journey not the arrival matters.',
-];
+import { QUOTES } from '@/lib/constants';
 
 export default function SkeletonLoader() {
-  const [quote, setQuote] = useState(QUOTES[0]);
+  const [quote, setQuote] = useState<string>(QUOTES[0]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const id = setInterval(() => {
       setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
     }, 4000);
-    return () => clearInterval(interval);
+    return () => clearInterval(id);
   }, []);
 
   return (
-    <div className="relative">
-      {/* Quote overlay */}
+    <div role="status" aria-label="Loading travel experience" aria-live="polite">
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
         <div className="max-w-md text-center px-6 animate-quote-fade">
-          <Compass className="w-8 h-8 text-emerald-400/20 mx-auto mb-4" />
+          <Compass className="w-8 h-8 text-emerald-400/20 mx-auto mb-4" aria-hidden="true" />
           <p className="text-sm text-zinc-500/60 italic leading-relaxed">
             &ldquo;{quote}&rdquo;
           </p>
         </div>
       </div>
 
-      {/* Skeleton cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 opacity-30">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 opacity-30" aria-hidden="true">
         {[0, 1, 2].map((i) => (
           <div
             key={i}
@@ -66,6 +50,8 @@ export default function SkeletonLoader() {
           </div>
         ))}
       </div>
+
+      <span className="sr-only">Generating your travel experience, please wait</span>
     </div>
   );
 }

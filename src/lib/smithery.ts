@@ -1,3 +1,5 @@
+import { SMITHERY_NAMESPACE } from './constants';
+
 const SMITHERY_API = 'https://api.smithery.ai';
 
 export const MCP_SERVERS = {
@@ -31,7 +33,7 @@ function getApiKey(): string {
   return key;
 }
 
-function getHeaders() {
+function getHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${getApiKey()}`,
@@ -47,7 +49,7 @@ async function findOrCreateNamespace(): Promise<string> {
       headers: getHeaders(),
     });
     if (res.ok) {
-      const data = await res.json();
+      const data: { namespaces?: { name: string }[] } = await res.json();
       const namespaces = data.namespaces ?? [];
       if (namespaces.length > 0) return namespaces[0].name;
     }
@@ -55,26 +57,26 @@ async function findOrCreateNamespace(): Promise<string> {
     /* fall through */
   }
 
-  const fallback = 'cultural-horizons';
   try {
     await fetch(`${SMITHERY_API}/namespaces`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ name: fallback }),
+      body: JSON.stringify({ name: SMITHERY_NAMESPACE }),
     });
   } catch {
     /* namespace may already exist */
   }
-  return fallback;
+  return SMITHERY_NAMESPACE;
 }
 
 async function findConnection(namespace: string, qualifiedName: string) {
   try {
-    const res = await fetch(`${SMITHERY_API}/connect/${namespace}?name=${encodeURIComponent(qualifiedName)}`, {
-      headers: getHeaders(),
-    });
+    const res = await fetch(
+      `${SMITHERY_API}/connect/${namespace}?name=${encodeURIComponent(qualifiedName)}`,
+      { headers: getHeaders() },
+    );
     if (res.ok) {
-      const data = await res.json();
+      const data: { connections?: { id: string }[] } = await res.json();
       const connections = data.connections ?? [];
       if (connections.length > 0) return connections[0];
     }
@@ -97,7 +99,7 @@ async function createConnection(namespace: string, qualifiedName: string, mcpUrl
     const text = await res.text();
     throw new Error(`Failed to create connection: ${res.status} ${text}`);
   }
-  return res.json();
+  return res.json() as Promise<{ id?: string }>;
 }
 
 async function callMcpTool(
@@ -125,7 +127,7 @@ async function callMcpTool(
     throw new Error(`MCP call failed: ${res.status} ${text}`);
   }
 
-  const result = await res.json();
+  const result: { error?: { message: string }; result?: { content?: unknown[] } } = await res.json();
   if (result.error) throw new Error(`MCP error: ${result.error.message}`);
   return result.result?.content ?? [];
 }
@@ -138,12 +140,10 @@ export async function callTool(
   const server = MCP_SERVERS[serverKey];
   const namespace = await findOrCreateNamespace();
 
-  let connection = await findConnection(namespace, server.qualifiedName);
-  if (!connection) {
-    connection = await createConnection(namespace, server.qualifiedName, server.mcpUrl);
-  }
+  const found = await findConnection(namespace, server.qualifiedName);
+  const connection = found ?? await createConnection(namespace, server.qualifiedName, server.mcpUrl);
 
-  return callMcpTool(namespace, connection.id, tool, params);
+  return callMcpTool(namespace, (connection as { id: string }).id, tool, params);
 }
 
 export async function callMcpDirect(
@@ -167,7 +167,7 @@ export async function callMcpDirect(
     throw new Error(`Direct MCP call failed: ${res.status} ${text}`);
   }
 
-  const result = await res.json();
+  const result: { error?: { message: string }; result?: { content?: unknown[] } } = await res.json();
   if (result.error) throw new Error(`MCP error: ${result.error.message}`);
   return result.result?.content ?? [];
 }
