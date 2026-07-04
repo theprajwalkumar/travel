@@ -1,116 +1,62 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { fallbackDiscoverResponse } from '@/lib/fallbackData';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 
-const responseSchema = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type: SchemaType.OBJECT as any,
-  description: 'A curated cultural travel experience for the user',
-  properties: {
-    discovery_location: {
-      type: SchemaType.STRING,
-      description: 'The specific location or neighborhood discovered',
-    },
-    recommendations: {
-      type: SchemaType.ARRAY,
-      description: 'List of curated recommendations',
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          title: { type: SchemaType.STRING, description: 'Name of the place/experience' },
-          type: { type: SchemaType.STRING, description: 'Category e.g. artisan, viewpoint, eatery' },
-          distance_context: { type: SchemaType.STRING, description: 'Walking distance or proximity description' },
-          the_cultural_hook: { type: SchemaType.STRING, description: 'Why this place matters culturally' },
-          why_for_you: { type: SchemaType.STRING, description: 'Personal relevance to the traveler' },
-          interactive_local_tip: { type: SchemaType.STRING, description: 'An actionable tip only locals know' },
-        },
-        required: ['title', 'type', 'distance_context', 'the_cultural_hook', 'why_for_you', 'interactive_local_tip'],
-      },
-    },
-    story_segments: {
-      type: SchemaType.OBJECT,
-      description: 'Three sensory narrative steps',
-      properties: {
-        arrival: {
-          type: SchemaType.OBJECT,
-          properties: {
-            ui_subtitle: { type: SchemaType.STRING, description: 'Short subtitle for UI display' },
-            narration_script: { type: SchemaType.STRING, description: 'Vivid sensory narration' },
-          },
-          required: ['ui_subtitle', 'narration_script'],
-        },
-        hidden_detail: {
-          type: SchemaType.OBJECT,
-          properties: {
-            ui_subtitle: { type: SchemaType.STRING, description: 'Short subtitle for UI display' },
-            narration_script: { type: SchemaType.STRING, description: 'Vivid sensory narration' },
-          },
-          required: ['ui_subtitle', 'narration_script'],
-        },
-        living_echo: {
-          type: SchemaType.OBJECT,
-          properties: {
-            ui_subtitle: { type: SchemaType.STRING, description: 'Short subtitle for UI display' },
-            narration_script: { type: SchemaType.STRING, description: 'Vivid sensory narration' },
-          },
-          required: ['ui_subtitle', 'narration_script'],
-        },
-      },
-      required: ['arrival', 'hidden_detail', 'living_echo'],
-    },
-    wholesome_playbook: {
-      type: SchemaType.OBJECT,
-      description: 'Wholesome connection guidance',
-      properties: {
-        community_spotlight: { type: SchemaType.STRING, description: 'Who makes this place special' },
-        the_wholesome_angle: { type: SchemaType.STRING, description: 'The beautiful human story behind the craft' },
-        connection_micro_action: { type: SchemaType.STRING, description: 'A small polite action to connect' },
-        supporting_the_soul: { type: SchemaType.STRING, description: 'Non-intrusive way to support them' },
-        linguistic_bridge: {
-          type: SchemaType.OBJECT,
-          properties: {
-            local_phrase: { type: SchemaType.STRING, description: 'Thank you / beautiful work in local dialect' },
-            phonetic_pronunciation: { type: SchemaType.STRING, description: 'Phonetic spelling' },
-            literal_meaning: { type: SchemaType.STRING, description: 'Literal translation' },
-            perfect_moment_to_use: { type: SchemaType.STRING, description: 'When to use this phrase' },
-          },
-          required: ['local_phrase', 'phonetic_pronunciation', 'literal_meaning', 'perfect_moment_to_use'],
-        },
-      },
-      required: ['community_spotlight', 'the_wholesome_angle', 'connection_micro_action', 'supporting_the_soul', 'linguistic_bridge'],
-    },
-  },
-  required: ['discovery_location', 'recommendations', 'story_segments', 'wholesome_playbook'],
-};
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
-function buildSystemInstruction(isWholesomeMode: boolean): string {
-  if (isWholesomeMode) {
-    return `You are a warm, deeply empathetic cultural anthropologist. Your purpose is to foster heartfelt, respectful, and wholesome connections between travelers and local community keepers (artisans, elderly shopkeepers, street-food chefs, traditional craftspeople). You focus on mutual respect, gratitude, and sustainable human connection.
-
-Your response must avoid anything transactional. Instead, guide the traveler to see the soul of a place — the generational knowledge, the quiet rituals, the human stories embedded in everyday life. You prioritize emotional warmth over sightseeing efficiency, and always suggest small, meaningful ways to brighten a local creator's day.`;
-  }
-
-  return `You are an elite hyper-local guide with encyclopedic knowledge of hidden alleys, off-menu dishes, overlooked architecture, and the stories that tour buses speed past. You know a place not through Wikipedia but through its sounds, smells, and the people who have lived there for decades.
+const SYSTEM_PROMPT = `You are an elite hyper-local guide with encyclopedic knowledge of hidden alleys, off-menu dishes, overlooked architecture, and the stories that tour buses speed past. You know a place not through Wikipedia but through its sounds, smells, and the people who have lived there for decades.
 
 Your response should feel like a trusted local friend pulling the traveler aside. Prioritize specificity, sensory detail, and actionable intelligence (exact cross streets, best time of day, what to look for, what to skip). You love revealing the kind of detail that makes a traveler feel like they've discovered something genuinely secret.`;
-}
 
-function buildPrompt(
-  location: string,
-  vibe: string,
-  dateTimeSeason: string,
-): string {
+function buildPrompt(location: string, vibe: string, dateTimeSeason: string): string {
   return `Generate a curated cultural discovery experience for a traveler visiting ${location}.
 
 Traveler's interest: ${vibe}
 Current time/season context: ${dateTimeSeason}
 
-Return ONLY valid JSON matching the provided schema. Every string must be original, vivid, and 100% specific to ${location} — never generic. The recommendations must feel like genuine local discoveries, not tourist brochure items. The story segments should immerse the reader in sensory details (sights, sounds, smells, textures). The wholesome playbook must root the traveler in human connection.
+Return a JSON object with this exact schema:
+{
+  "discovery_location": "string — the specific location/neighborhood",
+  "recommendations": [
+    {
+      "title": "string — name of place/experience",
+      "type": "string — category like artisan, viewpoint, eatery",
+      "distance_context": "string — walking distance or proximity description",
+      "the_cultural_hook": "string — why this place matters culturally",
+      "why_for_you": "string — personal relevance to the traveler",
+      "interactive_local_tip": "string — actionable tip only locals know"
+    }
+  ],
+  "story_segments": {
+    "arrival": { "ui_subtitle": "string — short subtitle", "narration_script": "string — vivid sensory narration" },
+    "hidden_detail": { "ui_subtitle": "string — short subtitle", "narration_script": "string — vivid sensory narration" },
+    "living_echo": { "ui_subtitle": "string — short subtitle", "narration_script": "string — vivid sensory narration" }
+  },
+  "wholesome_playbook": {
+    "community_spotlight": "string — who makes this place special",
+    "the_wholesome_angle": "string — the beautiful human story",
+    "connection_micro_action": "string — small action to connect",
+    "supporting_the_soul": "string — non-intrusive way to support",
+    "linguistic_bridge": {
+      "local_phrase": "string — thank you in local dialect",
+      "phonetic_pronunciation": "string — phonetic spelling",
+      "literal_meaning": "string — literal translation",
+      "perfect_moment_to_use": "string — when to use it"
+    }
+  }
+}
 
 Rules:
-- Do NOT include markdown fences or extra text — only the JSON object.
-- Every field must be populated with rich, location-specific content.
+- Return ONLY the JSON object, no markdown fences or extra text.
+- Every string must be original, vivid, and 100% specific to ${location}.
+- Recommendations must feel like genuine local discoveries.
+- Story segments must immerse in sensory details (sights, sounds, smells, textures).
 - Distance contexts should be realistic (walking minutes, landmarks).
 - The linguistic bridge must use a real local language/dialect appropriate to ${location}.`;
 }
@@ -131,6 +77,66 @@ function validateApiResponse(data: unknown) {
   return data as typeof fallbackDiscoverResponse;
 }
 
+async function tryOpenAI(location: string, vibe: string, dateTimeSeason: string) {
+  if (!openai) throw new Error('OpenAI not configured');
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: buildPrompt(location, vibe, dateTimeSeason) },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.8,
+    max_tokens: 4096,
+  });
+
+  const text = completion.choices[0]?.message?.content;
+  if (!text) throw new Error('OpenAI returned empty response');
+
+  const parsed = JSON.parse(text);
+  return validateApiResponse(parsed);
+}
+
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+];
+
+async function tryGemini(location: string, vibe: string, dateTimeSeason: string) {
+  if (!genAI) throw new Error('Gemini not configured');
+
+  const prompt = buildPrompt(location, vibe, dateTimeSeason);
+
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT,
+        generationConfig: {
+          temperature: 0.8,
+          topP: 0.95,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+
+      const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      return validateApiResponse(parsed);
+    } catch (e) {
+      console.warn(`Gemini model ${modelName} failed:`, (e as Error).message);
+      continue;
+    }
+  }
+
+  throw new Error('All Gemini models failed');
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -138,44 +144,35 @@ export async function POST(request: Request) {
       userLocation = '',
       userVibe = 'Craft & Heritage',
       currentDateTimeSeason = 'Afternoon',
-      isWholesomeMode = true,
     } = body;
 
     if (!userLocation.trim()) {
       return Response.json({ success: true, data: fallbackDiscoverResponse });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn('GEMINI_API_KEY is not set — returning fallback data');
-      return Response.json({ success: true, data: fallbackDiscoverResponse });
+    let data: unknown = null;
+
+    // Try OpenAI first, then Gemini, then fallback
+    if (openai) {
+      try {
+        data = await tryOpenAI(userLocation, userVibe, currentDateTimeSeason);
+        return Response.json({ success: true, data });
+      } catch (e) {
+        console.warn('OpenAI failed, trying Gemini:', (e as Error).message);
+      }
     }
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
-      systemInstruction: buildSystemInstruction(isWholesomeMode),
-      generationConfig: {
-        temperature: 0.8,
-        topP: 0.95,
-        responseMimeType: 'application/json',
-        responseSchema,
-      },
-    });
-
-    const prompt = buildPrompt(userLocation, userVibe, currentDateTimeSeason);
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
-      parsed = JSON.parse(cleaned);
+    if (genAI) {
+      try {
+        data = await tryGemini(userLocation, userVibe, currentDateTimeSeason);
+        return Response.json({ success: true, data });
+      } catch (e) {
+        console.warn('Gemini failed, using fallback:', (e as Error).message);
+      }
     }
 
-    const validated = validateApiResponse(parsed);
-    return Response.json({ success: true, data: validated });
+    console.warn('No AI provider available — returning fallback data');
+    return Response.json({ success: true, data: fallbackDiscoverResponse });
   } catch (error) {
     console.error('Discover API error:', error);
     return Response.json({ success: true, data: fallbackDiscoverResponse });

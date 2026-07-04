@@ -5,52 +5,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-:root {
-  --accent: #34d399;
-  --accent-light: #6ee7b7;
-  --accent-bg: rgba(52, 211, 153, 0.1);
-  --accent-bg-5: rgba(52, 211, 153, 0.05);
-  --accent-bg-4: rgba(52, 211, 153, 0.04);
-  --accent-border: rgba(52, 211, 153, 0.2);
-  --accent-border-10: rgba(52, 211, 153, 0.1);
-  --accent-from: rgba(52, 211, 153, 0.15);
-  --accent-to: rgba(45, 212, 191, 0.15);
-  --secondary: #5eead4;
-  --secondary-bg: rgba(45, 212, 191, 0.1);
-  --focus-color: rgba(52, 211, 153, 0.3);
-  --focus-shadow: rgba(52, 211, 153, 0.15);
-  --active-glow: 0 0 16px -4px rgba(52, 211, 153, 0.3);
-  --skeleton-shimmer: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(52, 211, 153, 0.06) 50%,
-    transparent 100%
-  );
-}
-
-[data-mode="wholesome"] {
-  --accent: #fbbf24;
-  --accent-light: #fcd34d;
-  --accent-bg: rgba(251, 191, 36, 0.1);
-  --accent-bg-5: rgba(251, 191, 36, 0.05);
-  --accent-bg-4: rgba(251, 191, 36, 0.04);
-  --accent-border: rgba(251, 191, 36, 0.2);
-  --accent-border-10: rgba(251, 191, 36, 0.1);
-  --accent-from: rgba(251, 191, 36, 0.15);
-  --accent-to: rgba(251, 146, 60, 0.15);
-  --secondary: #fb923c;
-  --secondary-bg: rgba(251, 146, 60, 0.1);
-  --focus-color: rgba(251, 191, 36, 0.3);
-  --focus-shadow: rgba(251, 191, 36, 0.15);
-  --active-glow: 0 0 16px -4px rgba(251, 191, 36, 0.3);
-  --skeleton-shimmer: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(251, 191, 36, 0.06) 50%,
-    transparent 100%
-  );
-}
-
 html {
   background-color: #050505;
   color: #fafafa;
@@ -138,16 +92,15 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-input,
-select,
-button {
+button, input, select {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
   outline: none;
 }
 
 input:focus,
 select:focus {
-  border-color: var(--focus-color);
-  box-shadow: 0 0 0 1px var(--focus-shadow);
+  border-color: rgba(52, 211, 153, 0.3);
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.15);
 }
 
 .stagger-1 {

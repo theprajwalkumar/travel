@@ -30,14 +30,20 @@ const FALLBACK: Record<string, unknown> = {
 };
 
 export async function POST(request: Request) {
+  let body: { server?: string; tool?: string; params?: Record<string, unknown> } = {};
   try {
-    const body = await request.json();
-    const { server, tool, params } = body;
+    body = await request.json();
+  } catch {
+    return Response.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-    if (!server || !tool) {
-      return Response.json({ success: false, error: 'Missing server or tool' }, { status: 400 });
-    }
+  const { server, tool, params } = body;
 
+  if (!server || !tool) {
+    return Response.json({ success: false, error: 'Missing server or tool' }, { status: 400 });
+  }
+
+  try {
     if (server === 'maps' && tool === 'search_places') {
       const data = await callMcpDirect(
         'https://mapstools.googleapis.com/mcp',
@@ -53,12 +59,30 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('MCP proxy error:', error);
 
-    const { server: fallbackServer } = await request.json().catch(() => ({}));
-    const key = (fallbackServer as string) ?? 'maps';
+    const key = server ?? 'maps';
+    const query = (params?.query as string) || (params?.location as string) || '';
+    const dest = params?.destination as string || query || 'your destination';
+
+    // Inject user context into fallback data so it feels responsive
+    const contextualFallback = structuredClone(FALLBACK[key] ?? FALLBACK.maps);
+
+    if (key === 'maps' && Array.isArray((contextualFallback as Record<string, unknown>).places)) {
+      (contextualFallback as Record<string, unknown>).places = [
+        { name: `Cultural Quarter`, rating: 4.7, vicinity: `Central ${dest}`, types: ['cultural', 'historic'] },
+        { name: `Heritage Walkway`, rating: 4.5, vicinity: `Old ${dest}`, types: ['cultural'] },
+        { name: `${dest} Artisan Corner`, rating: 4.3, vicinity: `${dest}`, types: ['artisan', 'local'] },
+      ];
+    } else if (key === 'flights' && Array.isArray((contextualFallback as Record<string, unknown>).flights)) {
+      (contextualFallback as Record<string, unknown>).flights = [
+        { airline: 'IndiGo', price: '$120', duration: '2h 15m', stops: 0, departure: '06:45', arrival: '09:00' },
+        { airline: 'Air India', price: '$180', duration: '2h 10m', stops: 0, departure: '14:30', arrival: '16:40' },
+        { airline: 'SpiceJet', price: '$95', duration: '2h 30m', stops: 0, departure: '22:15', arrival: '00:45' },
+      ];
+    }
 
     return Response.json({
       success: true,
-      data: FALLBACK[key] ?? FALLBACK.maps,
+      data: contextualFallback,
       _fallback: true,
     });
   }

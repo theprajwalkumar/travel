@@ -11,8 +11,8 @@ export default function CardHiddenGems({ data }: Props) {
   return (
     <div className="glass rounded-2xl p-6 glass-hover animate-fade-in-up stagger-1 h-full flex flex-col">
       <div className="flex items-center gap-2.5 mb-5">
-        <div className="w-8 h-8 rounded-lg bg-[var(--accent-bg)] flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-emerald-400" />
         </div>
         <h3 className="text-sm font-semibold text-white">
           Hidden Gems &amp; Local Secrets
@@ -31,10 +31,10 @@ export default function CardHiddenGems({ data }: Props) {
           text={data.why_for_you}
         />
         <div className="mt-auto pt-2">
-          <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--accent-bg-4)] border border-[var(--accent-border-10)]">
-            <MapPin className="w-4 h-4 text-[var(--accent)] mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10">
+            <MapPin className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-[10px] font-semibold text-[var(--accent)]/80 uppercase tracking-wider mb-1">
+              <p className="text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider mb-1">
                 Local Field Tip
               </p>
               <p className="text-xs text-zinc-300 leading-relaxed">

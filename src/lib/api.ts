@@ -1,11 +1,10 @@
-import type { TravelExperience, AppMode, VibeOption, SeasonOption } from '@/types';
+import type { TravelExperience, VibeOption, SeasonOption } from '@/types';
 import type { DiscoverApiResponse } from './fallbackData';
 
 export interface DiscoverRequest {
   userLocation: string;
   userVibe: VibeOption;
   currentDateTimeSeason: SeasonOption;
-  isWholesomeMode: boolean;
 }
 
 function transformResponse(apiData: DiscoverApiResponse): TravelExperience {

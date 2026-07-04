@@ -1,11 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import type { AppMode, VibeOption, SeasonOption, TravelExperience } from '@/types';
+import type { VibeOption, SeasonOption, TravelExperience } from '@/types';
 
 interface AppContextType {
-  mode: AppMode;
-  setMode: (mode: AppMode) => void;
   destination: string;
   setDestination: (d: string) => void;
   currentVibe: VibeOption;
@@ -23,7 +21,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<AppMode>('wholesome');
   const [destination, setDestination] = useState('');
   const [currentVibe, setCurrentVibe] = useState<VibeOption>('Craft & Heritage');
   const [season, setSeason] = useState<SeasonOption>('Afternoon');
@@ -34,8 +31,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        mode,
-        setMode,
         destination,
         setDestination,
         currentVibe,

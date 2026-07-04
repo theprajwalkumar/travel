@@ -58,14 +58,14 @@ export default function CardWholesomePlaybook({ data }: Props) {
         />
       </div>
 
-      <div className="mt-4 p-4 rounded-xl bg-[var(--accent-bg-4)] border border-[var(--accent-border-10)]">
+      <div className="mt-4 p-4 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10">
         <div className="flex items-center gap-2 mb-2">
           <Heart className="w-3.5 h-3.5 text-rose-400/70" />
           <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
             Parting Words of Gratitude
           </span>
         </div>
-        <p className="text-base font-medium text-[var(--accent-light)] leading-snug">
+        <p className="text-base font-medium text-emerald-300 leading-snug">
           {data.parting_words_of_gratitude.local_phrase}
         </p>
         <div className="flex items-center gap-2 mt-2">
@@ -79,8 +79,8 @@ export default function CardWholesomePlaybook({ data }: Props) {
           >
             {copied ? (
               <>
-                <Check className="w-3 h-3 text-[var(--accent)]" />
-                <span className="text-[var(--accent)]">Copied</span>
+                <Check className="w-3 h-3 text-emerald-400" />
+                <span className="text-emerald-400">Copied</span>
               </>
             ) : (
               <>

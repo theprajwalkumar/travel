@@ -8,7 +8,6 @@ import {
   Sunset,
   Moon,
   Sparkles,
-  Loader2,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { fetchDiscoverExperience } from '@/lib/api';
@@ -31,7 +30,6 @@ const seasons: { value: SeasonOption; Icon: typeof Sun; label: string }[] = [
 
 export default function DiscoveryHub() {
   const {
-    mode,
     destination,
     setDestination,
     currentVibe,
@@ -54,7 +52,6 @@ export default function DiscoveryHub() {
         userLocation: localDest,
         userVibe: currentVibe,
         currentDateTimeSeason: season,
-        isWholesomeMode: mode === 'wholesome',
       });
       setExperience(experience);
     } catch {
@@ -63,7 +60,7 @@ export default function DiscoveryHub() {
     } finally {
       setIsLoading(false);
     }
-  }, [localDest, currentVibe, season, mode, setDestination, setIsLoading, setExperience]);
+  }, [localDest, currentVibe, season, setDestination, setIsLoading, setExperience]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') generate();
@@ -121,7 +118,7 @@ export default function DiscoveryHub() {
               title={label}
               className={`p-2 rounded-lg transition-all duration-200 ${
                 season === value
-                  ? 'bg-[var(--accent-bg)] text-[var(--accent)] border border-[var(--accent-border)]'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10'
                   : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
               }`}
             >
@@ -133,7 +130,7 @@ export default function DiscoveryHub() {
         <button
           onClick={generate}
           disabled={!localDest.trim()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] border border-[var(--accent-border)] text-[var(--accent)] text-sm font-medium transition-all duration-200 hover:from-[var(--accent-bg)] hover:to-[var(--secondary-bg)] hover:border-[var(--accent-border)] disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/15 to-teal-400/15 border border-emerald-500/20 text-emerald-300 text-sm font-medium transition-all duration-200 hover:from-emerald-500/25 hover:to-teal-400/25 hover:border-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
         >
           <Sparkles className="w-4 h-4" />
           Generate Experience

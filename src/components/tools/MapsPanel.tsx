@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { MapPin, Star, Navigation, Loader2 } from 'lucide-react';
+import { MapPin, Star, Loader2 } from 'lucide-react';
 
 interface Place {
   name: string;
@@ -87,7 +87,7 @@ export default function MapsPanel({ destination }: { destination: string }) {
       )}
 
       {places && !loading && (
-        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
           {places.map((place, i) => (
             <div
               key={i}
@@ -118,12 +118,6 @@ export default function MapsPanel({ destination }: { destination: string }) {
                   ))}
                 </div>
               </div>
-              <button
-                className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
-                title="Navigate"
-              >
-                <Navigation className="w-3.5 h-3.5" />
-              </button>
             </div>
           ))}
         </div>
