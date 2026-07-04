@@ -1,22 +1,20 @@
 'use client';
 
-import { useApp } from '@/context/AppContext';
+import { memo } from 'react';
 import { Compass } from 'lucide-react';
+import { useApp } from '@/context/AppContext';
+import { APP_NAME } from '@/lib/constants';
 import SkeletonLoader from './SkeletonLoader';
 import CardHiddenGems from './CardHiddenGems';
 import CardSensoryTimeMachine from './CardSensoryTimeMachine';
 import CardWholesomePlaybook from './CardWholesomePlaybook';
 
-export default function LiveMatrix() {
+/** Renders loading state, empty state, or the three result cards. */
+function LiveMatrix() {
   const { experience, isLoading } = useApp();
 
-  if (isLoading) {
-    return <SkeletonLoader />;
-  }
-
-  if (!experience) {
-    return <EmptyState />;
-  }
+  if (isLoading) return <SkeletonLoader />;
+  if (!experience) return <EmptyState />;
 
   return (
     <section aria-label="Travel experience results">
@@ -29,6 +27,7 @@ export default function LiveMatrix() {
   );
 }
 
+/** Shown when no experience has been generated yet. */
 function EmptyState() {
   return (
     <div
@@ -43,10 +42,12 @@ function EmptyState() {
         Discover Something Real
       </h2>
       <p className="text-sm text-zinc-600 max-w-md leading-relaxed">
-        Tell us where you&apos;re headed, pick a vibe, and let Bon-Voyage.io
-        uncover the hidden stories, sensory landscapes, and human connections
+        Tell us where you&apos;re headed, pick a vibe, and let {APP_NAME}
+        {' '}uncover the hidden stories, sensory landscapes, and human connections
         waiting for you.
       </p>
     </div>
   );
 }
+
+export default memo(LiveMatrix);

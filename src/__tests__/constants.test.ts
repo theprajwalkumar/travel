@@ -9,8 +9,8 @@ import {
 } from '@/lib/constants';
 
 describe('constants', () => {
-  it('APP_NAME is Bon-Voyage.io', () => {
-    expect(APP_NAME).toBe('Bon-Voyage.io');
+  it('APP_NAME is Bon-Voyage', () => {
+    expect(APP_NAME).toBe('Bon-Voyage');
   });
 
   it('VIBE_OPTIONS has correct values', () => {

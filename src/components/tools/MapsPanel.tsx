@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState, useRef } from 'react';
 import { MapPin, Star, Navigation } from 'lucide-react';
-import type { FallbackPlacesResult } from '@/types';
 
 interface Props {
   destination: string;
@@ -15,17 +14,19 @@ interface PlaceResult {
   types: string[];
 }
 
-export default function MapsPanel({ destination }: Props) {
+/** Fetches and displays nearby places from the MCP proxy. */
+function MapsPanel({ destination }: Props) {
   const [places, setPlaces] = useState<PlaceResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const abort = new AbortController();
     setLoading(true);
     setError(null);
 
     fetch('/api/mcp/proxy', {
+      signal: abort.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -36,22 +37,21 @@ export default function MapsPanel({ destination }: Props) {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (cancelled) return;
+        if (abort.signal.aborted) return;
         if (!data.success) {
           setError(data.error || 'Failed to load places');
           return;
         }
-        const resultData = data.data as { places?: PlaceResult[] };
-        setPlaces(resultData.places ?? []);
+        setPlaces(data.data?.places ?? []);
       })
-      .catch(() => {
-        if (!cancelled) setError('Unable to load places');
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError('Unable to load places');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!abort.signal.aborted) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => abort.abort();
   }, [destination]);
 
   if (loading) {
@@ -64,17 +64,8 @@ export default function MapsPanel({ destination }: Props) {
     );
   }
 
-  if (error) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>
-    );
-  }
-
-  if (places.length === 0) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4">No places found.</p>
-    );
-  }
+  if (error) return <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>;
+  if (places.length === 0) return <p className="text-xs text-zinc-500 text-center py-4">No places found.</p>;
 
   return (
     <div className="space-y-2" role="list" aria-label="Nearby places">
@@ -104,3 +95,5 @@ export default function MapsPanel({ destination }: Props) {
     </div>
   );
 }
+
+export default memo(MapsPanel);

@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Plane, Clock, ArrowRight } from 'lucide-react';
-import type { FallbackFlightsResult } from '@/types';
 
 interface Props {
   destination: string;
@@ -17,17 +16,19 @@ interface FlightResult {
   arrival: string;
 }
 
-export default function FlightsPanel({ destination }: Props) {
+/** Fetches and displays available flights from the MCP proxy. */
+function FlightsPanel({ destination }: Props) {
   const [flights, setFlights] = useState<FlightResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const abort = new AbortController();
     setLoading(true);
     setError(null);
 
     fetch('/api/mcp/proxy', {
+      signal: abort.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -38,22 +39,21 @@ export default function FlightsPanel({ destination }: Props) {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (cancelled) return;
+        if (abort.signal.aborted) return;
         if (!data.success) {
           setError(data.error || 'Failed to load flights');
           return;
         }
-        const resultData = data.data as { flights?: FlightResult[] };
-        setFlights(resultData.flights ?? []);
+        setFlights(data.data?.flights ?? []);
       })
-      .catch(() => {
-        if (!cancelled) setError('Unable to load flights');
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError('Unable to load flights');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!abort.signal.aborted) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => abort.abort();
   }, [destination]);
 
   if (loading) {
@@ -66,17 +66,8 @@ export default function FlightsPanel({ destination }: Props) {
     );
   }
 
-  if (error) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>
-    );
-  }
-
-  if (flights.length === 0) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4">No flights found.</p>
-    );
-  }
+  if (error) return <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>;
+  if (flights.length === 0) return <p className="text-xs text-zinc-500 text-center py-4">No flights found.</p>;
 
   return (
     <div className="space-y-2" role="list" aria-label="Available flights">
@@ -108,3 +99,5 @@ export default function FlightsPanel({ destination }: Props) {
     </div>
   );
 }
+
+export default memo(FlightsPanel);

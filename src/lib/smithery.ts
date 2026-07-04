@@ -2,6 +2,7 @@ import { SMITHERY_NAMESPACE } from './constants';
 
 const SMITHERY_API = 'https://api.smithery.ai';
 
+/** MCP server registry keyed by human-friendly name. */
 export const MCP_SERVERS = {
   maps: {
     qualifiedName: 'google-maps',
@@ -33,39 +34,41 @@ function getApiKey(): string {
   return key;
 }
 
-function getHeaders(): Record<string, string> {
+function authHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${getApiKey()}`,
   };
 }
 
+/**
+ * Find an existing Smithery namespace or create a new one.
+ * Falls back to SMITHERY_NAMESPACE constant.
+ */
 async function findOrCreateNamespace(): Promise<string> {
-  const key = process.env.SMITHERY_NAMESPACE;
-  if (key) return key;
+  const envNamespace = process.env.SMITHERY_NAMESPACE;
+  if (envNamespace) return envNamespace;
 
   try {
-    const res = await fetch(`${SMITHERY_API}/namespaces`, {
-      headers: getHeaders(),
-    });
+    const res = await fetch(`${SMITHERY_API}/namespaces`, { headers: authHeaders() });
     if (res.ok) {
       const data: { namespaces?: { name: string }[] } = await res.json();
-      const namespaces = data.namespaces ?? [];
-      if (namespaces.length > 0) return namespaces[0].name;
+      if (data.namespaces && data.namespaces.length > 0) return data.namespaces[0].name;
     }
   } catch {
-    /* fall through */
+    /* fall through to creation */
   }
 
   try {
     await fetch(`${SMITHERY_API}/namespaces`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: authHeaders(),
       body: JSON.stringify({ name: SMITHERY_NAMESPACE }),
     });
   } catch {
-    /* namespace may already exist */
+    /* likely already exists */
   }
+
   return SMITHERY_NAMESPACE;
 }
 
@@ -73,12 +76,11 @@ async function findConnection(namespace: string, qualifiedName: string) {
   try {
     const res = await fetch(
       `${SMITHERY_API}/connect/${namespace}?name=${encodeURIComponent(qualifiedName)}`,
-      { headers: getHeaders() },
+      { headers: authHeaders() },
     );
     if (res.ok) {
       const data: { connections?: { id: string }[] } = await res.json();
-      const connections = data.connections ?? [];
-      if (connections.length > 0) return connections[0];
+      if (data.connections && data.connections.length > 0) return data.connections[0];
     }
   } catch {
     /* not found */
@@ -89,17 +91,14 @@ async function findConnection(namespace: string, qualifiedName: string) {
 async function createConnection(namespace: string, qualifiedName: string, mcpUrl: string) {
   const res = await fetch(`${SMITHERY_API}/connect/${namespace}`, {
     method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({
-      name: qualifiedName,
-      mcpUrl,
-    }),
+    headers: authHeaders(),
+    body: JSON.stringify({ name: qualifiedName, mcpUrl }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Failed to create connection: ${res.status} ${text}`);
   }
-  return res.json() as Promise<{ id?: string }>;
+  return res.json() as Promise<{ id: string }>;
 }
 
 async function callMcpTool(
@@ -108,19 +107,16 @@ async function callMcpTool(
   tool: string,
   params: Record<string, unknown>,
 ) {
-  const res = await fetch(
-    `${SMITHERY_API}/connect/${namespace}/${connectionId}/mcp`,
-    {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: { name: tool, arguments: params },
-        id: 1,
-      }),
-    },
-  );
+  const res = await fetch(`${SMITHERY_API}/connect/${namespace}/${connectionId}/mcp`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: tool, arguments: params },
+      id: 1,
+    }),
+  });
 
   if (!res.ok) {
     const text = await res.text();
@@ -132,6 +128,10 @@ async function callMcpTool(
   return result.result?.content ?? [];
 }
 
+/**
+ * Call a registered Smithery MCP tool by server key, auto-resolving the
+ * namespace and connection.
+ */
 export async function callTool(
   serverKey: McpServerKey,
   tool: string,
@@ -141,11 +141,15 @@ export async function callTool(
   const namespace = await findOrCreateNamespace();
 
   const found = await findConnection(namespace, server.qualifiedName);
-  const connection = found ?? await createConnection(namespace, server.qualifiedName, server.mcpUrl);
+  const connection = found ?? (await createConnection(namespace, server.qualifiedName, server.mcpUrl));
 
-  return callMcpTool(namespace, (connection as { id: string }).id, tool, params);
+  return callMcpTool(namespace, connection.id, tool, params);
 }
 
+/**
+ * Call an MCP tool at an arbitrary URL (e.g. Google Maps MCP) without going
+ * through the Smithery connection layer.
+ */
 export async function callMcpDirect(
   mcpUrl: string,
   tool: string,

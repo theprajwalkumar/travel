@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Heart, Copy, Check } from 'lucide-react';
 import type { WholesomePlaybook } from '@/types';
 
@@ -8,7 +8,21 @@ interface Props {
   data: WholesomePlaybook;
 }
 
-export default function CardWholesomePlaybook({ data }: Props) {
+function Section({ label, text }: { label: string; text: string }) {
+  return (
+    <section>
+      <h4 className="flex items-center gap-1.5 mb-1">
+        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+          {label}
+        </span>
+      </h4>
+      <p className="text-sm text-zinc-300 leading-relaxed">{text}</p>
+    </section>
+  );
+}
+
+/** Card showing the community spotlight, wholesome angle, and gratitude phrase. */
+function CardWholesomePlaybook({ data }: Props) {
   const [copied, setCopied] = useState(false);
 
   const copyPhrase = useCallback(async () => {
@@ -25,15 +39,19 @@ export default function CardWholesomePlaybook({ data }: Props) {
       document.body.removeChild(ta);
     }
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const id = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(id);
   }, [data.parting_words_of_gratitude]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      copyPhrase();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        copyPhrase();
+      }
+    },
+    [copyPhrase],
+  );
 
   return (
     <article
@@ -44,9 +62,7 @@ export default function CardWholesomePlaybook({ data }: Props) {
         <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center">
           <Heart className="w-4 h-4 text-rose-400" aria-hidden="true" />
         </div>
-        <h3 className="text-sm font-semibold text-white">
-          Wholesome Connection Playbook
-        </h3>
+        <h3 className="text-sm font-semibold text-white">Wholesome Connection Playbook</h3>
       </header>
 
       <div className="space-y-4 flex-1">
@@ -101,21 +117,4 @@ export default function CardWholesomePlaybook({ data }: Props) {
   );
 }
 
-function Section({
-  label,
-  text,
-}: {
-  label: string;
-  text: string;
-}) {
-  return (
-    <section>
-      <h4 className="flex items-center gap-1.5 mb-1">
-        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-          {label}
-        </span>
-      </h4>
-      <p className="text-sm text-zinc-300 leading-relaxed">{text}</p>
-    </section>
-  );
-}
+export default memo(CardWholesomePlaybook);

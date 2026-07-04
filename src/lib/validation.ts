@@ -1,16 +1,18 @@
-import { VIBE_OPTIONS, SEASON_OPTIONS } from './constants';
+import { VIBE_OPTIONS, SEASON_OPTIONS, MAX_INPUT_LENGTH, MAX_STORY_LENGTH } from './constants';
 
-const MAX_INPUT_LENGTH = 200;
-const MAX_STORY_LENGTH = 5000;
-
-export function sanitizeString(input: string): string {
+/**
+ * Strip angle brackets and trim to max length.
+ * Prevents reflected XSS in user-supplied strings.
+ */
+export function sanitizeString(input: unknown): string {
   if (typeof input !== 'string') return '';
-  return input
-    .trim()
-    .replace(/[<>]/g, '') 
-    .slice(0, MAX_INPUT_LENGTH);
+  return input.trim().replace(/[<>]/g, '').slice(0, MAX_INPUT_LENGTH);
 }
 
+/**
+ * Validate and sanitize a destination string.
+ * @throws if missing, whitespace-only, or shorter than 2 characters.
+ */
 export function validateDestination(dest: unknown): string {
   if (typeof dest !== 'string' || !dest.trim()) {
     throw new Error('Destination is required');
@@ -22,37 +24,44 @@ export function validateDestination(dest: unknown): string {
   return sanitized;
 }
 
+/**
+ * Validate a vibe enum, falling back to the first valid option.
+ */
 export function validateVibe(vibe: unknown): string {
-  if (typeof vibe !== 'string') {
-    return VIBE_OPTIONS[0];
-  }
-  if (!VIBE_OPTIONS.includes(vibe as never)) {
-    return VIBE_OPTIONS[0];
-  }
-  return vibe;
+  if (typeof vibe !== 'string') return VIBE_OPTIONS[0];
+  return VIBE_OPTIONS.includes(vibe as never) ? vibe : VIBE_OPTIONS[0];
 }
 
+/**
+ * Validate a season enum, falling back to "Afternoon".
+ */
 export function validateSeason(season: unknown): string {
-  if (typeof season !== 'string') {
-    return SEASON_OPTIONS[1];
-  }
-  if (!SEASON_OPTIONS.includes(season as never)) {
-    return SEASON_OPTIONS[1];
-  }
-  return season;
+  if (typeof season !== 'string') return SEASON_OPTIONS[1];
+  return SEASON_OPTIONS.includes(season as never) ? season : SEASON_OPTIONS[1];
 }
 
+/**
+ * Validate and coerce the full discover endpoint request body.
+ * Returns a safe, sanitized triple of (location, vibe, season).
+ * @throws if location is invalid.
+ */
 export function validateDiscoverBody(body: Record<string, unknown>): {
   userLocation: string;
   userVibe: string;
   currentDateTimeSeason: string;
 } {
-  const userLocation = validateDestination(body.userLocation);
-  const userVibe = validateVibe(body.userVibe);
-  const currentDateTimeSeason = validateSeason(body.currentDateTimeSeason);
-  return { userLocation, userVibe, currentDateTimeSeason };
+  return {
+    userLocation: validateDestination(body.userLocation),
+    userVibe: validateVibe(body.userVibe),
+    currentDateTimeSeason: validateSeason(body.currentDateTimeSeason),
+  };
 }
 
+/**
+ * Validate and sanitize an MCP proxy request body.
+ * Server and tool names are stripped to alphanumeric + hyphens/underscores.
+ * @throws if server or tool is missing or empty.
+ */
 export function validateMcpBody(body: Record<string, unknown>): {
   server: string;
   tool: string;
@@ -64,27 +73,28 @@ export function validateMcpBody(body: Record<string, unknown>): {
   const tool = typeof body.tool === 'string' && body.tool.trim()
     ? body.tool.trim().replace(/[^a-z_-]/g, '')
     : '';
-  const params = typeof body.params === 'object' && body.params !== null
-    ? body.params as Record<string, unknown>
-    : {};
+  const params =
+    typeof body.params === 'object' && body.params !== null
+      ? (body.params as Record<string, unknown>)
+      : {};
 
   if (!server) throw new Error('Missing or invalid server');
   if (!tool) throw new Error('Missing or invalid tool');
-
   return { server, tool, params };
 }
 
-export function validateStoryLength(text: string): boolean {
-  return text.length <= MAX_STORY_LENGTH;
-}
-
+/**
+ * Sanitize a narration script for safe rendering.
+ */
 export function sanitizeNarration(text: string): string {
-  return text
-    .replace(/[<>]/g, '')
-    .slice(0, MAX_STORY_LENGTH);
+  return text.replace(/[<>]/g, '').slice(0, MAX_STORY_LENGTH);
 }
 
-export function isValidHttpUrl(str: string): boolean {
+/**
+ * Check whether a string is a valid http/https URL.
+ */
+export function isValidHttpUrl(str: unknown): boolean {
+  if (typeof str !== 'string') return false;
   try {
     const url = new URL(str);
     return url.protocol === 'http:' || url.protocol === 'https:';

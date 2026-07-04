@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { BookHeart, Quote } from 'lucide-react';
 
 interface Props {
@@ -13,17 +13,19 @@ interface HeritageStory {
   summary: string;
 }
 
-export default function HeritagePanel({ destination }: Props) {
+/** Fetches and displays oral heritage stories from the MCP proxy. */
+function HeritagePanel({ destination }: Props) {
   const [stories, setStories] = useState<HeritageStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const abort = new AbortController();
     setLoading(true);
     setError(null);
 
     fetch('/api/mcp/proxy', {
+      signal: abort.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -34,22 +36,21 @@ export default function HeritagePanel({ destination }: Props) {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (cancelled) return;
+        if (abort.signal.aborted) return;
         if (!data.success) {
           setError(data.error || 'Failed to load heritage stories');
           return;
         }
-        const resultData = data.data as { stories?: HeritageStory[] };
-        setStories(resultData.stories ?? []);
+        setStories(data.data?.stories ?? []);
       })
-      .catch(() => {
-        if (!cancelled) setError('Unable to load heritage stories');
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError('Unable to load heritage stories');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!abort.signal.aborted) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => abort.abort();
   }, [destination]);
 
   if (loading) {
@@ -62,17 +63,8 @@ export default function HeritagePanel({ destination }: Props) {
     );
   }
 
-  if (error) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>
-    );
-  }
-
-  if (stories.length === 0) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4">No heritage stories found.</p>
-    );
-  }
+  if (error) return <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>;
+  if (stories.length === 0) return <p className="text-xs text-zinc-500 text-center py-4">No heritage stories found.</p>;
 
   return (
     <div className="space-y-2" role="list" aria-label="Heritage stories">
@@ -95,3 +87,5 @@ export default function HeritagePanel({ destination }: Props) {
     </div>
   );
 }
+
+export default memo(HeritagePanel);

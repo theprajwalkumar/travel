@@ -1,18 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { Compass } from 'lucide-react';
 import { QUOTES } from '@/lib/constants';
 
-export default function SkeletonLoader() {
-  const [quote, setQuote] = useState<string>(QUOTES[0]);
+const QUOTE_INTERVAL_MS = 4000;
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
-    }, 4000);
-    return () => clearInterval(id);
-  }, []);
+/**
+ * Cycling skeleton loader displayed while the API generates results.
+ * Shows a rotating travel quote and three pulsing placeholder cards.
+ */
+function SkeletonLoader() {
+  const [quoteIdx, setQuoteIdx] = useState(0);
+
+  useInterval(() => {
+    setQuoteIdx((prev) => (prev + 1) % QUOTES.length);
+  }, QUOTE_INTERVAL_MS);
 
   return (
     <div role="status" aria-label="Loading travel experience" aria-live="polite">
@@ -20,7 +23,7 @@ export default function SkeletonLoader() {
         <div className="max-w-md text-center px-6 animate-quote-fade">
           <Compass className="w-8 h-8 text-emerald-400/20 mx-auto mb-4" aria-hidden="true" />
           <p className="text-sm text-zinc-500/60 italic leading-relaxed">
-            &ldquo;{quote}&rdquo;
+            &ldquo;{QUOTES[quoteIdx]}&rdquo;
           </p>
         </div>
       </div>
@@ -55,3 +58,19 @@ export default function SkeletonLoader() {
     </div>
   );
 }
+
+/**
+ * setInterval as a reusable hook. Avoids creating a new interval on every render
+ * and lets us use a callback ref for stable access to current state.
+ */
+function useInterval(callback: () => void, delayMs: number) {
+  const savedCb = useRef(callback);
+  savedCb.current = callback;
+
+  useEffect(() => {
+    const id = setInterval(() => savedCb.current(), delayMs);
+    return () => clearInterval(id);
+  }, [delayMs]);
+}
+
+export default memo(SkeletonLoader);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { Headphones, Play, Pause, Volume2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { TTS_RATE, TTS_PITCH, TTS_VOLUME } from '@/lib/constants';
@@ -10,43 +10,53 @@ interface Props {
   steps: SensoryStep[];
 }
 
-export default function CardSensoryTimeMachine({ steps }: Props) {
+function hasSpeechSynthesis(): boolean {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window;
+}
+
+/** Speak text via the browser SpeechSynthesis API. */
+function speak(text: string): void {
+  if (!hasSpeechSynthesis()) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = TTS_RATE;
+  utterance.pitch = TTS_PITCH;
+  utterance.volume = TTS_VOLUME;
+  window.speechSynthesis.speak(utterance);
+}
+
+/** Cancel any active SpeechSynthesis. */
+function stopSpeech(): void {
+  if (hasSpeechSynthesis()) window.speechSynthesis.cancel();
+}
+
+/** Card with narrated sensory steps (arrival, hidden detail, living echo). */
+function CardSensoryTimeMachine({ steps }: Props) {
   const { audioPlaying, setAudioPlaying } = useApp();
 
-  const speak = useCallback((text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = TTS_RATE;
-      utterance.pitch = TTS_PITCH;
-      utterance.volume = TTS_VOLUME;
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
+  const toggle = useCallback(
+    (index: number) => {
+      if (audioPlaying === index) {
+        stopSpeech();
+        setAudioPlaying(null);
+      } else {
+        stopSpeech();
+        setAudioPlaying(index);
+        speak(steps[index].description);
+      }
+    },
+    [audioPlaying, steps, setAudioPlaying],
+  );
 
-  const stop = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-  }, []);
-
-  const toggle = (index: number) => {
-    if (audioPlaying === index) {
-      stop();
-      setAudioPlaying(null);
-    } else {
-      stop();
-      setAudioPlaying(index);
-      speak(steps[index].description);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggle(index);
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, index: number) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(index);
+      }
+    },
+    [toggle],
+  );
 
   return (
     <article
@@ -57,9 +67,7 @@ export default function CardSensoryTimeMachine({ steps }: Props) {
         <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center">
           <Headphones className="w-4 h-4 text-teal-400" aria-hidden="true" />
         </div>
-        <h3 className="text-sm font-semibold text-white">
-          The Sensory Time Machine
-        </h3>
+        <h3 className="text-sm font-semibold text-white">The Sensory Time Machine</h3>
       </header>
 
       <div className="space-y-3 flex-1" role="list" aria-label="Narration steps">
@@ -84,19 +92,17 @@ export default function CardSensoryTimeMachine({ steps }: Props) {
                 }`}
                 aria-hidden="true"
               >
-                <span className={`text-xs font-bold ${isPlaying ? 'text-emerald-300' : 'text-zinc-500'}`}>
+                <span
+                  className={`text-xs font-bold ${isPlaying ? 'text-emerald-300' : 'text-zinc-500'}`}
+                >
                   {i + 1}
                 </span>
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm font-medium text-white">
-                    {step.title}
-                  </h4>
-                  <span className="text-[10px] text-zinc-600 flex-shrink-0">
-                    {step.duration}
-                  </span>
+                  <h4 className="text-sm font-medium text-white">{step.title}</h4>
+                  <span className="text-[10px] text-zinc-600 flex-shrink-0">{step.duration}</span>
                 </div>
                 <p
                   className={`text-xs mt-1 leading-relaxed transition-colors duration-300 ${
@@ -115,7 +121,9 @@ export default function CardSensoryTimeMachine({ steps }: Props) {
                     ? 'bg-emerald-500/20 text-emerald-300'
                     : 'bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200'
                 }`}
-                aria-label={isPlaying ? `Pause narration: ${step.title}` : `Play narration: ${step.title}`}
+                aria-label={
+                  isPlaying ? `Pause narration: ${step.title}` : `Play narration: ${step.title}`
+                }
                 aria-pressed={isPlaying}
               >
                 {isPlaying ? (
@@ -142,3 +150,5 @@ export default function CardSensoryTimeMachine({ steps }: Props) {
     </article>
   );
 }
+
+export default memo(CardSensoryTimeMachine);

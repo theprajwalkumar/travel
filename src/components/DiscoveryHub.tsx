@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { MapPin, Sparkles, Menu } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { fetchDiscoverExperience } from '@/lib/api';
@@ -11,7 +11,8 @@ interface Props {
   onMenuClick: () => void;
 }
 
-export default function DiscoveryHub({ onMenuClick }: Props) {
+/** Top search bar with destination input, vibe selector and Generate button. */
+function DiscoveryHub({ onMenuClick }: Props) {
   const {
     setDestination,
     currentVibe,
@@ -43,11 +44,14 @@ export default function DiscoveryHub({ onMenuClick }: Props) {
     }
   }, [localDest, currentVibe, setDestination, setIsLoading, setExperience]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.repeat) {
-      generate();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.repeat) generate();
+    },
+    [generate],
+  );
+
+  const canGenerate = localDest.trim().length > 0;
 
   return (
     <header
@@ -65,7 +69,10 @@ export default function DiscoveryHub({ onMenuClick }: Props) {
         </button>
 
         <div className="relative flex-1 min-w-0">
-          <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" aria-hidden="true" />
+          <MapPin
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none"
+            aria-hidden="true"
+          />
           <input
             type="text"
             placeholder="Where are you heading?"
@@ -79,7 +86,9 @@ export default function DiscoveryHub({ onMenuClick }: Props) {
         </div>
 
         <div className="relative hidden sm:block">
-          <label htmlFor="vibe-select" className="sr-only">Select travel vibe</label>
+          <label htmlFor="vibe-select" className="sr-only">
+            Select travel vibe
+          </label>
           <select
             id="vibe-select"
             value={currentVibe}
@@ -101,7 +110,7 @@ export default function DiscoveryHub({ onMenuClick }: Props) {
 
         <button
           onClick={generate}
-          disabled={!localDest.trim()}
+          disabled={!canGenerate}
           aria-label="Generate travel experience"
           className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/15 to-teal-400/15 border border-emerald-500/20 text-emerald-300 text-sm font-medium transition-all duration-200 hover:from-emerald-500/25 hover:to-teal-400/25 hover:border-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
         >
@@ -129,3 +138,5 @@ export default function DiscoveryHub({ onMenuClick }: Props) {
     </header>
   );
 }
+
+export default memo(DiscoveryHub);

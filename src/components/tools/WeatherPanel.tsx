@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { CloudSun, Thermometer, Droplets } from 'lucide-react';
 
 interface Props {
@@ -21,22 +21,22 @@ interface WeatherForecast {
   condition: string;
 }
 
-interface WeatherData {
-  current?: WeatherCurrent;
-  forecast?: WeatherForecast[];
-}
-
-export default function WeatherPanel({ destination }: Props) {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+/** Fetches and displays current weather + forecast from the MCP proxy. */
+function WeatherPanel({ destination }: Props) {
+  const [weather, setWeather] = useState<{
+    current?: WeatherCurrent;
+    forecast?: WeatherForecast[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const abort = new AbortController();
     setLoading(true);
     setError(null);
 
     fetch('/api/mcp/proxy', {
+      signal: abort.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -47,21 +47,21 @@ export default function WeatherPanel({ destination }: Props) {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (cancelled) return;
+        if (abort.signal.aborted) return;
         if (!data.success) {
           setError(data.error || 'Failed to load weather');
           return;
         }
-        setWeather(data.data as WeatherData);
+        setWeather(data.data ?? null);
       })
-      .catch(() => {
-        if (!cancelled) setError('Unable to load weather');
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError('Unable to load weather');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!abort.signal.aborted) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => abort.abort();
   }, [destination]);
 
   if (loading) {
@@ -73,17 +73,8 @@ export default function WeatherPanel({ destination }: Props) {
     );
   }
 
-  if (error) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>
-    );
-  }
-
-  if (!weather) {
-    return (
-      <p className="text-xs text-zinc-500 text-center py-4">No weather data.</p>
-    );
-  }
+  if (error) return <p className="text-xs text-zinc-500 text-center py-4" role="alert">{error}</p>;
+  if (!weather) return <p className="text-xs text-zinc-500 text-center py-4">No weather data.</p>;
 
   return (
     <div>
@@ -131,3 +122,5 @@ export default function WeatherPanel({ destination }: Props) {
     </div>
   );
 }
+
+export default memo(WeatherPanel);

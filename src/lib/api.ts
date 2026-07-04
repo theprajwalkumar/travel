@@ -8,48 +8,69 @@ export interface DiscoverRequest {
   currentDateTimeSeason: string;
 }
 
+let _idCounter = 0;
+
+/** Generate a monotonically increasing unique ID (avoids Date.now() churn). */
+function nextId(): string {
+  _idCounter += 1;
+  return `discover-${_idCounter}-${Date.now()}`;
+}
+
+const STEP_DURATIONS = ['2 min', '3 min', '4 min'] as const;
+
+type StoryKey = 'arrival' | 'hidden_detail' | 'living_echo';
+
+const STORY_KEYS: StoryKey[] = ['arrival', 'hidden_detail', 'living_echo'];
+
+/**
+ * Map the raw API shape to the flattened TravelExperience the UI expects.
+ * All fields are null-coalesced to empty strings to prevent runtime crashes.
+ */
 function transformResponse(apiData: DiscoverApiResponse): TravelExperience {
   const rec = apiData.recommendations[0];
+
+  const storySegments = STORY_KEYS.map((key, i) => {
+    const seg = apiData.story_segments[key];
+    return {
+      title: seg?.ui_subtitle ?? '',
+      description: sanitizeString(seg?.narration_script ?? ''),
+      duration: STEP_DURATIONS[i],
+    };
+  });
+
+  const lb = apiData.wholesome_playbook?.linguistic_bridge;
+
   return {
-    id: `discover-${Date.now()}`,
-    destination: apiData.discovery_location,
+    id: nextId(),
+    destination: apiData.discovery_location ?? '',
     vibe: rec?.type ?? '',
     hidden_gems: {
       cultural_hook: rec?.the_cultural_hook ?? '',
       why_for_you: rec?.why_for_you ?? '',
       local_field_tip: rec?.interactive_local_tip ?? '',
     },
-    sensory_time_machine: [
-      {
-        title: apiData.story_segments.arrival.ui_subtitle,
-        description: sanitizeString(apiData.story_segments.arrival.narration_script),
-        duration: '2 min',
-      },
-      {
-        title: apiData.story_segments.hidden_detail.ui_subtitle,
-        description: sanitizeString(apiData.story_segments.hidden_detail.narration_script),
-        duration: '3 min',
-      },
-      {
-        title: apiData.story_segments.living_echo.ui_subtitle,
-        description: sanitizeString(apiData.story_segments.living_echo.narration_script),
-        duration: '4 min',
-      },
-    ],
+    sensory_time_machine: storySegments,
     wholesome_playbook: {
-      community_spotlight: apiData.wholesome_playbook.community_spotlight,
-      the_wholesome_angle: apiData.wholesome_playbook.the_wholesome_angle,
-      connection_micro_action: apiData.wholesome_playbook.connection_micro_action,
-      supporting_the_soul: apiData.wholesome_playbook.supporting_the_soul,
+      community_spotlight: apiData.wholesome_playbook?.community_spotlight ?? '',
+      the_wholesome_angle: apiData.wholesome_playbook?.the_wholesome_angle ?? '',
+      connection_micro_action: apiData.wholesome_playbook?.connection_micro_action ?? '',
+      supporting_the_soul: apiData.wholesome_playbook?.supporting_the_soul ?? '',
       parting_words_of_gratitude: {
-        local_phrase: apiData.wholesome_playbook.linguistic_bridge.local_phrase,
-        phonetic: apiData.wholesome_playbook.linguistic_bridge.phonetic_pronunciation,
-        emotional_intent: `${apiData.wholesome_playbook.linguistic_bridge.literal_meaning} ${apiData.wholesome_playbook.linguistic_bridge.perfect_moment_to_use}`,
+        local_phrase: lb?.local_phrase ?? '',
+        phonetic: lb?.phonetic_pronunciation ?? '',
+        emotional_intent: lb
+          ? `${lb.literal_meaning} ${lb.perfect_moment_to_use}`
+          : '',
       },
     },
   };
 }
 
+/**
+ * POST to /api/discover and return a typed TravelExperience.
+ * Validates and sanitizes the input before sending.
+ * @throws on network error, non-ok status, or invalid response shape.
+ */
 export async function fetchDiscoverExperience(
   request: DiscoverRequest,
 ): Promise<TravelExperience> {
@@ -64,6 +85,7 @@ export async function fetchDiscoverExperience(
       userVibe,
       currentDateTimeSeason: request.currentDateTimeSeason,
     }),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!res.ok) {

@@ -1,5 +1,7 @@
-export const APP_NAME = 'Bon-Voyage.io';
+/** Application display name. */
+export const APP_NAME = 'Bon-Voyage';
 
+/** Supported travel interest categories a user can select. */
 export const VIBE_OPTIONS = [
   'Craft & Heritage',
   'Architectural History',
@@ -10,10 +12,12 @@ export const VIBE_OPTIONS = [
 
 export type VibeOption = (typeof VIBE_OPTIONS)[number];
 
+/** Time-of-day options for context. */
 export const SEASON_OPTIONS = ['Morning', 'Afternoon', 'Evening', 'Night'] as const;
 
 export type SeasonOption = (typeof SEASON_OPTIONS)[number];
 
+/** Ordered Gemini models to attempt in fallback chain. */
 export const GEMINI_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
@@ -21,8 +25,10 @@ export const GEMINI_MODELS = [
   'gemini-2.0-flash-lite',
 ] as const;
 
-export const SMITHERY_NAMESPACE = 'bon-voyage-io';
+/** Smithery namespace identifier. */
+export const SMITHERY_NAMESPACE = 'bon-voyage';
 
+/** Travel quotes shown during loading. */
 export const QUOTES = [
   'Travel is the only thing you buy that makes you richer.',
   'The world is a book, and those who do not travel read only one page.',
@@ -38,13 +44,21 @@ export const QUOTES = [
   'The journey not the arrival matters.',
 ] as const;
 
+/** SpeechSynthesis parameters. */
 export const TTS_RATE = 0.85;
 export const TTS_PITCH = 1.0;
 export const TTS_VOLUME = 1;
 
+/** API configuration. */
 export const API_TIMEOUT_MS = 30000;
 export const OPENAI_MODEL = 'gpt-4o-mini';
 export const OPENAI_TEMPERATURE = 0.8;
 export const OPENAI_MAX_TOKENS = 4096;
 export const GEMINI_TEMPERATURE = 0.8;
 export const GEMINI_TOP_P = 0.95;
+
+/** Story narration length cap. */
+export const MAX_STORY_LENGTH = 5000;
+
+/** Input length cap. */
+export const MAX_INPUT_LENGTH = 200;

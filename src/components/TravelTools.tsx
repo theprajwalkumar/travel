@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Map, Plane, CloudSun, BookHeart, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import MapsPanel from './tools/MapsPanel';
@@ -17,16 +17,17 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key'];
 
-export default function TravelTools() {
+/** Collapsible travel-tools panel with four sub-tools. */
+function TravelTools() {
   const { destination } = useApp();
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
 
+  const openTab = useCallback((key: TabKey) => setActiveTab(key), []);
+  const closeTab = useCallback(() => setActiveTab(null), []);
+
   if (!activeTab) {
     return (
-      <section
-        className="glass rounded-2xl p-5 animate-fade-in"
-        aria-label="Travel tools"
-      >
+      <section className="glass rounded-2xl p-5 animate-fade-in" aria-label="Travel tools">
         <h2 className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-3">
           Travel Tools
         </h2>
@@ -34,7 +35,7 @@ export default function TravelTools() {
           {TABS.map(({ key, label, Icon, color, description }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
+              onClick={() => openTab(key)}
               role="listitem"
               aria-label={`Open ${label} tool: ${description}`}
               className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] glass-hover transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
@@ -51,10 +52,7 @@ export default function TravelTools() {
   const active = TABS.find((t) => t.key === activeTab)!;
 
   return (
-    <section
-      className="glass rounded-2xl p-5 animate-fade-in"
-      aria-label={`Travel tool: ${active.label}`}
-    >
+    <section className="glass rounded-2xl p-5 animate-fade-in" aria-label={`Travel tool: ${active.label}`}>
       <header className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-white/[0.04] flex items-center justify-center">
@@ -63,7 +61,7 @@ export default function TravelTools() {
           <h2 className="text-sm font-medium text-white">{active.label}</h2>
         </div>
         <button
-          onClick={() => setActiveTab(null)}
+          onClick={closeTab}
           className="w-6 h-6 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
           aria-label={`Close ${active.label} tool`}
         >
@@ -78,3 +76,5 @@ export default function TravelTools() {
     </section>
   );
 }
+
+export default memo(TravelTools);

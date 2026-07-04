@@ -13,12 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bon-Voyage.io — AI Travel Discovery',
+  title: 'Bon-Voyage \u2014 AI Travel Discovery',
   description:
     'An AI-powered travel platform that uncovers hidden cultural experiences, sensory narratives, and authentic local connections wherever you go.',
   robots: { index: true, follow: true },
   openGraph: {
-    title: 'Bon-Voyage.io — AI Travel Discovery',
+    title: 'Bon-Voyage \u2014 AI Travel Discovery',
     description:
       'Discover hidden cultural experiences with AI-powered travel intelligence.',
     type: 'website',

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Compass, X } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
 
@@ -8,7 +9,8 @@ interface Props {
   onClose: () => void;
 }
 
-export default function Sidebar({ open, onClose }: Props) {
+/** Application sidebar with branding and a closing quote. */
+function Sidebar({ open, onClose }: Props) {
   return (
     <>
       <div
@@ -33,18 +35,15 @@ export default function Sidebar({ open, onClose }: Props) {
           <a
             href="/"
             className="flex items-center gap-3 group"
-            aria-label={`${APP_NAME} — home`}
+            aria-label={`${APP_NAME} \u2014 home`}
           >
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-400/15 flex items-center justify-center border border-emerald-500/10 group-focus-visible:ring-2 group-focus-visible:ring-emerald-400/40">
               <Compass className="w-5 h-5 text-emerald-400" aria-hidden="true" />
             </div>
             <div>
               <h1 className="text-sm font-semibold tracking-tight text-white">
-                Bon-Voyage
+                {APP_NAME}
               </h1>
-              <p className="text-[11px] text-zinc-500 font-medium tracking-wide">
-                .io
-              </p>
             </div>
           </a>
           <button
@@ -58,7 +57,7 @@ export default function Sidebar({ open, onClose }: Props) {
 
         <div className="flex-1 p-5">
           <p className="text-[10px] text-zinc-600 leading-relaxed">
-            Discover hidden cultural experiences wherever you go — powered by AI.
+            Discover hidden cultural experiences wherever you go \u2014 powered by AI.
           </p>
         </div>
 
@@ -71,3 +70,5 @@ export default function Sidebar({ open, onClose }: Props) {
     </>
   );
 }
+
+export default memo(Sidebar);
